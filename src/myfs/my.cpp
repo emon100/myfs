@@ -16,6 +16,10 @@ void setRawFs(char *b){
 }
 
 void printFSInfo(FSInfo *fs){
+    if(fs==NULL){
+        fprintf(stderr,"printFSInfo: NULLptr\n");
+        return;
+    }
     printf("----FSINFO-----\n");
     printf("fs_size :%lld\n",fs->fs_size);
     printf("block_size :%lld\n",fs->block_size);
@@ -26,19 +30,30 @@ void printFSInfo(FSInfo *fs){
 }
 
 void printINodeInfo(INode *i){
+    if(i==NULL){
+        fprintf(stderr,"printINodeInfo: NULLptr\n");
+        return;
+    }
     printf("----INodeINFO-----\n");
     printf("id :%d\n",i->id);
     printf("type :%s\n",i->type?"directory":"file");
     printf("sfd :%d\n",i->sfd_id);
     printf("filelen :%d\n",i->filelen);
-    printf("diskBlockNum :%d\n",i->diskBlockCount);
+    printf("diskBlockCount :%d\n",i->diskBlockCount);
     printf("diskBlockId :%d\n",i->diskBlockId);
     printf("qcount :%d\n",i->qcount);
     printf("time :%lld\n",i->createTime);
+    if(i->type==1){
+        printDirectory(getDirectory(i->diskBlockId));
+    }
     printf("----INodeINFO--END-----\n");
 }
 
 void printDirectory(Directory *dir){
+    if(dir==NULL){
+        fprintf(stderr,"printDirectory: NULLptr\n");
+        return;
+    }
     DirectoryEntry * entries = dir->Entry;
 
     printf("----Directory INFO-----\n");
@@ -67,7 +82,7 @@ INUMBER alloc_empty_inode(
     int64_t allocated_inode_num = fsinfo->inode_count;
 
     if(allocated_inode_num>=(long long)(BLOCK_SIZE/sizeof(INode))){//检测是否还能分配
-        fprintf(stderr,"alloc_empty_inode: Can't allocate memory");
+        fprintf(stderr,"alloc_empty_inode: Can't allocate memory\n");
         return -1;
     }
 
@@ -106,6 +121,13 @@ INUMBER alloc_empty_inode(
     return allocated_inode_num;
 }
 
+void dealloc_blocks_on_inode(INode *inode){
+    /*
+     *TODO: delete recursively like in give_file_an_empty_block.
+     */
+    deallocate_block(inode->diskBlockId);
+}
+
 INUMBER dealloc_inode(INUMBER inumber){
     INode *inode = INumber2INode(inumber);
     if(inode != NULL){
@@ -129,14 +151,14 @@ INUMBER make_directory(INUMBER upperINumber){//return inumber
        1
     );
     if(i_number==-1){
-        fprintf(stderr,"make_directory: Can't allocate empty inode.");
+        fprintf(stderr,"make_directory: Can't allocate empty inode.\n");
         return -1;
     }
 
     int32_t blockid = alloc_empty_block();
     if(blockid==-1){
         dealloc_inode(i_number);
-        fprintf(stderr,"make_directory: Can't allocate empty block.");
+        fprintf(stderr,"make_directory: Can't allocate empty block.\n");
         return -1;
     }
 
@@ -161,7 +183,7 @@ INUMBER make_directory(INUMBER upperINumber){//return inumber
 char *formatAndActivate(long sz, long blocksz){//在内存中格式化文件系统
     char *tmp;
     if((tmp = (char *) malloc(sizeof(char)*sz))==NULL){
-        fprintf(stderr,"format: Can't allocate memory");
+        fprintf(stderr,"format: Can't allocate memory\n");
         exit(1);
     }
     setRawFs(tmp);
@@ -193,7 +215,7 @@ char *formatAndActivate(long sz, long blocksz){//在内存中格式化文件系�
 
     int32_t i_number = make_directory(0);
     if(i_number==-1){
-        fprintf(stderr,"format: root_directory inode allocate failed.");
+        fprintf(stderr,"format: root_directory inode allocate failed.\n");
         exit(1);
     }
     fs->root_inumber = i_number;
@@ -207,12 +229,12 @@ void presistent(const char *path, char *buf, unsigned long fileSystemSz){//将�
 
     FILE *file=NULL;
     if((file=fopen(path,"wb"))==NULL){
-        fprintf(stderr,"presistent: File can't be open: %s",path);
+        fprintf(stderr,"presistent: File can't be open: %s\n",path);
         exit(1);
     }
 
     if(fwrite(buf,sizeof(char),fileSystemSz,file)!=fileSystemSz){
-        fprintf(stderr,"presistent: File allocating error: %s",path);
+        fprintf(stderr,"presistent: File allocating error: %s\n",path);
         exit(2);
     }
 
@@ -225,19 +247,19 @@ char *transient(const char *path,unsigned long FSSize){
 
     char *tmp;
     if((tmp = (char *) malloc(sizeof(char)*FSSize))==NULL){
-        fprintf(stderr,"transient: Can't allocate memeory");
+        fprintf(stderr,"transient: Can't allocate memeory\n");
         return NULL;
     }
 
     FILE *file =NULL;
     if((file=fopen(path,"rb"))==NULL){
-        fprintf(stderr,"transient: File can't be open: %s",path);
+        fprintf(stderr,"transient: File can't be open: %s\n",path);
         free(tmp);
         return NULL;
     }
 
     if(fread(tmp,sizeof(char),FSSize,file)!=FSSize){
-        fprintf(stderr,"transient: File read error: %s",path);
+        fprintf(stderr,"transient: File read error: %s\n",path);
         free(tmp);
         return NULL;
     }
@@ -298,7 +320,7 @@ INode *INumber2INode(int64_t inumber)
 int add_directory_entry(Directory *directory, const char *entryName, int64_t inumber)
 {
     if(directory==NULL||entryName==NULL||inumber<0){
-        fprintf(stderr,"add_directory_entry: error because directory or entryname or inumber is null.");
+        fprintf(stderr,"add_directory_entry: error because directory or entryname or inumber is null.\n");
         return -1;
     }
 
@@ -310,7 +332,7 @@ int add_directory_entry(Directory *directory, const char *entryName, int64_t inu
             good_entry = i;
         }else{
             if(strcmp(entryName,entries[i].name)==0){
-                fprintf(stderr,"add_directory_entry: file already exists.");
+                fprintf(stderr,"add_directory_entry: file already exists.\n");
                 return -2;
             }
         }
@@ -319,10 +341,11 @@ int add_directory_entry(Directory *directory, const char *entryName, int64_t inu
     if(good_entry!=-1){
         strncpy(entries[good_entry].name,entryName,56);
         entries[good_entry].inumber = inumber;
+        ++(INumber2INode(inumber)->qcount);
         return 0;
     }
 
-    fprintf(stderr,"add_directory_entry: directory is full");
+    fprintf(stderr,"add_directory_entry: directory is full\n");
     return -3;
 }
 
@@ -338,30 +361,94 @@ INUMBER find_in_directory(Directory *dir, const char *name){
     return -1;
 }
 
-/*
-int give_file_an_empty_block(INode *inode){
-    if(inode==NULL){
+int give_file_an_empty_block(INode *inode){//给文件添加一个可以放东西的磁盘块
+    if(inode==NULL||inode->type!=0){
+        fprintf(stderr,"give_file_an_empty_block: inode is NULL or is directory.\n");
         return -1;
     }
 
     int block_id = alloc_empty_block();
     if(block_id==-1){
-        fprintf(stderr,"alloc_empty_block 1 failed.");
+        fprintf(stderr,"give_file_an_empty_block: alloc_empty_block 1 failed.\n");
         return -1;
     }
 
-    if(inode->diskBlockCount==1){
+    if(inode->diskBlockCount==0){//之前没有分配磁盘块
+        inode->diskBlockId=block_id;
+        ++(inode->diskBlockCount);
+        return 0;
+    }else if(inode->diskBlockCount==1){//之前有1块磁盘块，之后变成3块
         int one_more_block = alloc_empty_block();
         if(one_more_block==-1){
-            fprintf(stderr,"alloc_empty_block 2 failed.");
+            fprintf(stderr,"give_file_an_empty_block: alloc_empty_block 2 failed.\n");
             deallocate_block(block_id);
             return -1;
         }
+        int oldBlock = inode->diskBlockId;
+        inode->diskBlockCount=3;
+        inode->diskBlockId = block_id;
         SuperBlock *b = (SuperBlock *)getBlock(block_id);
+        b->empty_blocks_count=2;
+        b->empty_blocks_no_stack[0]=oldBlock;
+        b->empty_blocks_no_stack[1]=one_more_block;
+        return 0;
+    }else{//已有n>1块磁盘块
+        /*
+        [0,1]: n * BLOCK_SIZE
+        [2,2]: (n-1) * BLOCK_SIZE//shouldn't exist.
+        [3,1024]: (n-1) * BLOCK_SIZE //[3, 1 + 1023] //1024 is veryFull
+        [1025,1025]:(n-2) * BLOCK_SIZE//shouldn't exist.
+        [1026,2047]: (n-2) * BLOCK_SIZE //[1026,1 + 1022 + 1 + 1023]//2047 is veryFull
+        [2048,2048]: (n-3) * BLOCK_SIZE //shouldn't exist
+        [2049,3070]: (n-3) * BLOCK_SIZE     //[2049,1 + 1022 + 1 + 1022 + 1 + 1023]//3070 is veryFull
+        [3071,3071]: (n-4) * BLOCK_SIZE     //shouldn't exist
+        [3072,4093]: (n-4) * BLOCK_SIZE     //[3072,1 + 1022 + 1 + 1022 + 1 + 1022 + 1 + 1023]
+        ...
+        */
+        /*
+        layer =  (n - 1 + 1022)/1023
 
-    }else{
+        judge = (n - 1 + 1022)%1023 == 0 //shouldn't exist
 
+        (n - layer) * BLOCK_SIZE
 
+        */
+        int32_t n = inode->diskBlockCount;
+        int8_t badFile = ((n - 1 + 1022) % 1023) == 0;
+        if(badFile){
+            fprintf(stderr,"give_file_an_empty_block: file block count %d shouldn't exist. File probably failed.\n",n);
+            deallocate_block(block_id);
+            return -1;
+        }
+        SuperBlock *b = (SuperBlock *)getBlock(inode->diskBlockId); // b is in layer 1
+
+        for(int layer = (n - 1 + 1022)/1023; layer>1 ;--layer){
+            b = (SuperBlock *)getBlock(b->empty_blocks_no_stack[1022]); //layer of b increse.
+        }
+
+        int8_t veryFull = ((n + 1022) % 1023) == 0;
+        if(veryFull){//should allocate 2 blocks: one superBlock one dataBlock
+            int one_more_block = alloc_empty_block();
+            if(one_more_block==-1){
+                fprintf(stderr,"give_file_an_empty_block: veryFull alloc_empty_block 2 failed.\n");
+                deallocate_block(block_id);
+                return -1;
+            }
+            ++(inode->diskBlockCount);
+            int oldBlock = b->empty_blocks_no_stack[1022];
+            b->empty_blocks_no_stack[1022] = block_id; //new layer.
+
+            SuperBlock *newLayer = (SuperBlock *)getBlock(block_id);
+            newLayer->empty_blocks_count=2;
+            newLayer->empty_blocks_no_stack[0] = oldBlock;
+            newLayer->empty_blocks_no_stack[1] = one_more_block;
+            return 0;
+        }else{
+            b->empty_blocks_no_stack[b->empty_blocks_count] = block_id;
+            ++(inode->diskBlockCount);
+            ++(b->empty_blocks_count);
+            return 0;
+        }
     }
 }
-*/
+
