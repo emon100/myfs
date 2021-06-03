@@ -15,7 +15,7 @@ int main(int argc, char** argv){
     printINodeInfo(rootINode);
 
     //放一个空文件a到根目录
-    int64_t inumber = alloc_empty_inode(
+    INUMBER inumber = alloc_empty_inode(
         0,
         0,
         0,
@@ -24,8 +24,10 @@ int main(int argc, char** argv){
         0
     );
 
+    const char * name = "a";
+
     Directory *rootDir = getDirectory(rootINode->diskBlockId);
-    add_directory_entry(rootDir,"a",inumber);
+    add_directory_entry(rootDir,name, inumber);
 
     //显示根文件夹
     INode *nd = INumber2INode(0);
@@ -33,7 +35,7 @@ int main(int argc, char** argv){
     printDirectory(dir);
 
     //找到这个文件的inumber
-    //find_in_directory(INode *directory, char *target)
+    INUMBER file = find_in_directory(dir,name);
     //显示这个文件的INode
-    //printINodeInfo()
+    printINodeInfo(INumber2INode(file));
 }
