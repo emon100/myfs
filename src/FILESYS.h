@@ -139,7 +139,7 @@ extern unsigned int write();
 extern int    login();
 extern        logout();
 extern        install();
-extern        format();
+extern        formatAndActivate();
 extern        close();
 extern        halt();
 extern        delete();

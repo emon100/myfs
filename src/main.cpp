@@ -5,7 +5,7 @@ static char path[] = "D:\\myfs.hd";
 
 int main(int argc, char** argv){
     const int32_t FS_SIZE = _10MB;
-    setRawFs(format(FS_SIZE,BLOCK_SIZE));
+    setRawFs(formatAndActivate(FS_SIZE,BLOCK_SIZE));
     presistent(path, getRawFs(),FS_SIZE);
     //setRawFs(transient(path, FS_SIZE));
 
@@ -30,7 +30,7 @@ int main(int argc, char** argv){
     //显示根文件夹
     INode *nd = INumber2INode(0);
     Directory * dir = getDirectory(nd->diskBlockId);
-    display_directory(dir);
+    printDirectory(dir);
 
     //找到这个文件的inumber
     //find_in_directory(INode *directory, char *target)

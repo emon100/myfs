@@ -21,8 +21,8 @@ const int32_t EMPTY_OFFSET = ILIST_OFFSET + ILIST_SIZE;
 typedef struct FSInfo {
     int64_t fs_size;//文件系统大小
     int64_t block_size;//块大小
-    int64_t inode_num;//当前文件数量
-    int64_t empty_block_num;//空块数量
+    int64_t inode_count;//当前文件数量
+    int64_t empty_block_count;//空块数量
     int64_t root_inumber;//根目录的inumber
 } FSInfo;
 
@@ -67,14 +67,14 @@ inline SuperBlock *getSuperBlock(){
 }
 
 inline Directory *getDirectory(int32_t blockID){
-    return (Directory *) (getRawFs() + EMPTY_OFFSET + blockID * BLOCK_SIZE);
+    return (Directory *) (getRawFs() + (EMPTY_OFFSET + blockID * BLOCK_SIZE));
 }
 
 void printFSInfo(FSInfo *fs);
 void printINodeInfo(INode *fs);
-void display_directory(Directory *directory);
+void printDirectory(Directory *directory);
 
-char *format(long sz, long blocksz);//在内存中格式化文件系统
+char *formatAndActivate(long sz, long blocksz);//在内存中格式化文件系统
 void presistent(const char *path, char *buf, unsigned long fileSystemSz);//将文件系统持久化到外存
 char *transient(const char *path, unsigned long FSSize);//从外存把文件系统载入内存
 

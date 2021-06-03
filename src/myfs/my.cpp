@@ -17,11 +17,11 @@ void setRawFs(char *b){
 
 void printFSInfo(FSInfo *fs){
     printf("----FSINFO-----\n");
-    printf("fs_size :%ld\n",fs->fs_size);
-    printf("block_size :%ld\n",fs->block_size);
-    printf("file_num :%ld\n",fs->inode_num);
-    printf("empty_block_num :%ld\n",fs->empty_block_num);
-    printf("root_inumber :%ld\n",fs->root_inumber);
+    printf("fs_size :%lld\n",fs->fs_size);
+    printf("block_size :%lld\n",fs->block_size);
+    printf("inode_count :%lld\n",fs->inode_count);
+    printf("empty_block_num :%lld\n",fs->empty_block_count);
+    printf("root_inumber :%lld\n",fs->root_inumber);
     printf("----FSINFO--END-----\n");
 }
 
@@ -34,23 +34,23 @@ void printINodeInfo(INode *i){
     printf("diskBlockNum :%d\n",i->diskBlockNum);
     printf("diskBlockId :%d\n",i->diskBlockId);
     printf("qcount :%d\n",i->qcount);
-    printf("time :%u\n",i->createTime);
+    printf("time :%lld\n",i->createTime);
     printf("----INodeINFO--END-----\n");
 }
 
-void display_directory(Directory *dir){
+void printDirectory(Directory *dir){
     DirectoryEntry * entries = dir->Entry;
 
     printf("----Directory INFO-----\n");
-    printf("name\t\tINumber");
+    printf("name\t\tINumber\n");
     int count=0;
     for(int i=0;i<BLOCK_SIZE/(int)sizeof(DirectoryEntry);++i){
         if(entries[i].inumber!=-1){
-            printf("%s\t\t%l",entries[i].name,entries[i].inumber);
+            printf("%s\t\t%lld\n",entries[i].name,entries[i].inumber);
             ++count;
         }
     }
-    printf("Total files: %d",count);
+    printf("Total files: %d\n",count);
     printf("----INodeINFO--END-----\n");
 }
 
@@ -63,7 +63,8 @@ int64_t alloc_empty_inode(
     int32_t auth,		    //8个user的访问权限
     int32_t qcount          //文件的引用数
 ){
-    int64_t allocated_inode_num = getFSInfo()->inode_num;
+    FSInfo *fsinfo = getFSInfo();
+    int64_t allocated_inode_num = fsinfo->inode_count;
 
     if(allocated_inode_num>=(long long)(BLOCK_SIZE/sizeof(INode))){
         fprintf(stderr,"alloc_empty_inode: Can't allocate memory");
@@ -83,7 +84,8 @@ int64_t alloc_empty_inode(
         time(NULL)
     };
 
-    ++(getFSInfo()->inode_num);
+    ++(fsinfo->inode_count);
+
 
     return allocated_inode_num;
 }
@@ -108,7 +110,7 @@ int32_t make_directory(){//return inumber
         return -1;
     }
 
-    INode * inode = getIList() + i_number;
+    INode * inode = INumber2INode(i_number);
     inode->filelen = _4KB;
     inode->diskBlockId = blockid;
     inode->diskBlockNum = 1;
@@ -117,20 +119,22 @@ int32_t make_directory(){//return inumber
     DirectoryEntry *entry = directory->Entry;
     for(int i=0;i<BLOCK_SIZE/(int)sizeof(DirectoryEntry);++i){
         entry[i].inumber=-1;
+        entry[i].name[0]='a';
+        entry[i].name[1]='\0';
     }
 
     return i_number;
 }
 
-char *format(long sz, long blocksz){//在内存中格式化文件系统
+char *formatAndActivate(long sz, long blocksz){//在内存中格式化文件系统
     char *tmp;
     if((tmp = (char *) malloc(sizeof(char)*sz))==NULL){
         fprintf(stderr,"format: Can't allocate memory");
-        _exit(1);
+        exit(1);
     }
     setRawFs(tmp);
 
-    int32_t empty_block_num = (sz/blocksz) - (ILIST_SIZE/blocksz) - 2;
+    int32_t empty_block_num = (sz-ILIST_SIZE)/BLOCK_SIZE - 2;
     FSInfo *fs = getFSInfo();
     *fs = {
         sz,
@@ -147,14 +151,12 @@ char *format(long sz, long blocksz){//在内存中格式化文件系统
     }
 
     int32_t i_number = make_directory();
-
     if(i_number==-1){
         fprintf(stderr,"format: root_directory inode allocate failed.");
-        _exit(1);
+        exit(1);
     }
-    fs->inode_num = i_number;
+    fs->root_inumber = i_number;
 
-    setRawFs(NULL);
     return tmp;
 }
 
@@ -165,12 +167,12 @@ void presistent(const char *path, char *buf, unsigned long fileSystemSz){//将�
     FILE *file=NULL;
     if((file=fopen(path,"wb"))==NULL){
         fprintf(stderr,"presistent: File can't be open: %s",path);
-        _exit(1);
+        exit(1);
     }
 
     if(fwrite(buf,sizeof(char),fileSystemSz,file)!=fileSystemSz){
         fprintf(stderr,"presistent: File allocating error: %s",path);
-        _exit(2);
+        exit(2);
     }
 
     fflush(file);
@@ -189,12 +191,12 @@ char *transient(const char *path,unsigned long FSSize){
     FILE *file =NULL;
     if((file=fopen(path,"rb"))==NULL){
         fprintf(stderr,"transient: File can't be open: %s",path);
-        _exit(1);
+        exit(1);
     }
 
     if(fread(tmp,sizeof(char),FSSize,file)!=FSSize){
         fprintf(stderr,"transient: File read error: %s",path);
-        _exit(2);
+        exit(2);
     }
 
     return tmp;
@@ -205,7 +207,7 @@ int32_t allocate_empty_block(){
     int64_t res = sb->empty_blocks_count;
     if(res>0){
         --(sb->empty_blocks_count);
-        --(getFSInfo()->empty_block_num);
+        --(getFSInfo()->empty_block_count);
         return res-1;
     }else{
         return -1;
@@ -231,7 +233,7 @@ int add_directory_entry(Directory *directory, const char *entryName, int64_t inu
     DirectoryEntry *entries = directory->Entry;
     for(int i=0;i<BLOCK_SIZE/(int)sizeof(DirectoryEntry);++i){
         if(entries[i].inumber==-1){
-            strcpy_s(entries[i].name,56,entryName);
+            strncpy(entries[i].name,entryName,56);
             entries[i].inumber = inumber;
             return 0;
         }
