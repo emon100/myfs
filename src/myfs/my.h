@@ -39,7 +39,7 @@ typedef struct INode{
     int32_t sfd_id;			//i结点对应的目录id
     int32_t filelen;		//文件长度
     int32_t auth;		    //9位，代表创建者，组的，其他用户的访问权限(rwx)
-    int32_t diskBlockNum;   //文件占用磁盘块个数
+    int32_t diskBlockCount;   //文件占用磁盘块个数
     int32_t diskBlockId;    //所占磁盘块的id号的索引块
     int32_t qcount;         //文件的引用数// -1代表空
     int64_t createTime;     //文件创建时间
@@ -54,34 +54,29 @@ typedef struct Directory{
     DirectoryEntry Entry[BLOCK_SIZE/sizeof(DirectoryEntry)]; //64个文件项
 }Directory ;
 
-char *getRawFs();//获得文件系统的首地址
 void setRawFs(char *);//设置文件系统的首地址
-inline FSInfo *getFSInfo(){
-    return  (FSInfo *) (getRawFs()+FSINFO_OFFSET);
-}
+char *getRawFs();//获得文件系统的首地址
+inline FSInfo *getFSInfo(){return  (FSInfo *) (getRawFs()+FSINFO_OFFSET);}//文件系统源信息地址
+inline INode *getIList(){return (INode *)(getRawFs() + ILIST_OFFSET);}//ILIST地址
+inline SuperBlock *getSuperBlock(){return (SuperBlock *)(getRawFs() + SUPERBLOCK_OFFSET);}//超级块地址
+inline char *getBlock(int64_t blockID){return getRawFs() + EMPTY_OFFSET + blockID * BLOCK_SIZE ;}//获得磁盘块int64防止溢出
+inline Directory *getDirectory(int64_t blockID){return (Directory *) getBlock(blockID);}//从块号得到目录文件
 
-inline INode *getIList(){
-    return (INode *)(getRawFs() + ILIST_OFFSET);
-}
 
-inline SuperBlock *getSuperBlock(){
-    return (SuperBlock *)(getRawFs() + SUPERBLOCK_OFFSET);
-}
-
-inline Directory *getDirectory(int32_t blockID){
-    return (Directory *) (getRawFs() + (EMPTY_OFFSET + blockID * BLOCK_SIZE));
-}
-
+//打印系列函数
 void printFSInfo(FSInfo *fs);
 void printINodeInfo(INode *fs);
-void printDirectory(Directory *directory);
+void printDirectory(Directory *directory);//dir
 
+//格式化，外存系列函数
 char *formatAndActivate(long sz, long blocksz);//在内存中格式化文件系统
 void presistent(const char *path, char *buf, unsigned long fileSystemSz);//将文件系统持久化到外存
 char *transient(const char *path, unsigned long FSSize);//从外存把文件系统载入内存
 
 
-int32_t allocate_empty_block();//分配空磁盘块，返回磁盘块号，失败返回-1
+int32_t alloc_empty_block();//分配空磁盘块，返回磁盘块号，失败返回-1
+int32_t deallocate_block(int32_t blockid);//
+
 INUMBER alloc_empty_inode( //分配并设置一个空inode，返回inumber，失败返回-1
     int32_t id,				//i结点所属的用户
     int32_t type,			//文件类型，0-文件，1-目录
@@ -90,13 +85,13 @@ INUMBER alloc_empty_inode( //分配并设置一个空inode，返回inumber，失
     int32_t auth,		    //9位，代表创建者，组的，其他用户的访问权限(rwx)
     int32_t qcount          //文件的引用数
 );
+INUMBER dealloc_inode(INUMBER);
 
-INUMBER make_directory(); //给目录文件分配1个磁盘块和inode，返回inumber
+INUMBER make_directory(INUMBER upperINumber); //给目录文件分配1个磁盘块和inode，返回inumber
 INode *INumber2INode(INUMBER inumber); //把inumber转换成inode *
 int add_directory_entry(Directory *directory,const char * entryName, INUMBER inumber);//添加目录项，失败返回-1
 
-void ls(Directory *d);
-INUMBER find_in_directory(Directory *dir, const char *path);
+INUMBER find_in_directory(Directory *dir, const char *name);//在目录中寻找
 
 
 #endif // MY_H

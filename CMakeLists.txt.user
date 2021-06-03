@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.14.0, 2021-06-03T19:23:19. -->
+<!-- Written by QtCreator 4.14.0, 2021-06-03T22:49:41. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -67,6 +67,7 @@
    <valuemap type="QVariantMap" key="AutoTest.CheckStates">
     <value type="Qt::CheckState" key="D:/source/os_design/test/test.cpp:FileSystem">Checked</value>
     <value type="Qt::CheckState" key="D:/source/os_design/test/test.cpp:Transient">Checked</value>
+    <value type="Qt::CheckState" key="D:/source/os_design/test/test.cpp:createdir">Checked</value>
    </valuemap>
    <value type="int" key="AutoTest.RunAfterBuild">0</value>
    <value type="bool" key="AutoTest.UseGlobal">true</value>
