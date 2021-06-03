@@ -41,7 +41,7 @@ typedef struct INode{
     int32_t auth;		    //9位，代表创建者，组的，其他用户的访问权限(rwx)
     int32_t diskBlockNum;   //文件占用磁盘块个数
     int32_t diskBlockId;    //所占磁盘块的id号的索引块
-    int32_t qcount;         //文件的引用数
+    int32_t qcount;         //文件的引用数// -1代表空
     int64_t createTime;     //文件创建时间
 } INode;
 
@@ -87,11 +87,11 @@ INUMBER alloc_empty_inode( //分配并设置一个空inode，返回inumber，失
     int32_t type,			//文件类型，0-文件，1-目录
     int32_t sfd_id,			//i结点对应的目录id
     int32_t filelen,		//文件长度
-    int32_t auth,		    //8个user的访问权限
+    int32_t auth,		    //9位，代表创建者，组的，其他用户的访问权限(rwx)
     int32_t qcount          //文件的引用数
 );
 
-int32_t make_directory(); //给目录文件分配1个磁盘块和inode，返回inumber
+INUMBER make_directory(); //给目录文件分配1个磁盘块和inode，返回inumber
 INode *INumber2INode(INUMBER inumber); //把inumber转换成inode *
 int add_directory_entry(Directory *directory,const char * entryName, INUMBER inumber);//添加目录项，失败返回-1
 

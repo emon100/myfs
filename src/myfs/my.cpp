@@ -55,12 +55,12 @@ void printDirectory(Directory *dir){
 }
 
 
-int64_t alloc_empty_inode(
+INUMBER alloc_empty_inode(
     int32_t id,				//i结点所属的用户
     int32_t type,			//文件类型，0-文件，1-目录
     int32_t sfd_id,			//i结点对应的目录id
     int32_t filelen,		//文件长度
-    int32_t auth,		    //8个user的访问权限
+    int32_t auth,		    //9位，代表创建者，组的，其他用户的访问权限(rwx)
     int32_t qcount          //文件的引用数
 ){
     FSInfo *fsinfo = getFSInfo();
@@ -72,6 +72,22 @@ int64_t alloc_empty_inode(
     }
 
     INode * inode = getIList() + allocated_inode_num;
+    if(inode->qcount!=-1){
+        inode = NULL;
+        for(int i=allocated_inode_num+1;i<(long long)(BLOCK_SIZE/sizeof(INode));++i){
+            if(getIList()[i].qcount==-1){
+                inode = getIList() + i;
+           }
+        }
+        if(inode==NULL){
+            for(int i=0;i<allocated_inode_num;++i){
+                if(getIList()[i].qcount==-1){
+                    inode = getIList() + i;
+                }
+            }
+        }
+    }
+
     *inode = {
         id,
         type,
@@ -85,12 +101,10 @@ int64_t alloc_empty_inode(
     };
 
     ++(fsinfo->inode_count);
-
-
     return allocated_inode_num;
 }
 
-int32_t make_directory(){//return inumber
+INUMBER make_directory(){//return inumber
     int64_t i_number = alloc_empty_inode(
        0,
        1,
@@ -148,6 +162,11 @@ char *formatAndActivate(long sz, long blocksz){//在内存中格式化文件系�
     sb->empty_blocks_count = empty_block_num;
     for(int32_t i=0;i<empty_block_num;++i){
         sb->empty_blocks_no_stack[i] = i;
+    }
+
+
+    for(int i=0;i<(long long)(BLOCK_SIZE/sizeof(INode));++i){
+        getIList()[i].qcount=-1;
     }
 
     int32_t i_number = make_directory();
@@ -243,7 +262,6 @@ int add_directory_entry(Directory *directory, const char *entryName, int64_t inu
     return -1;
 
 }
-
 
 INUMBER find_in_directory(Directory *dir, const char *name)
 {
