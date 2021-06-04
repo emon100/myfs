@@ -1,5 +1,7 @@
 #include <cstdio>
 #include <cstring>
+#include <string>
+#include <vector>
 #include "syscall.h"
 
 void ls(Directory *dir){
@@ -10,7 +12,6 @@ void ls(Directory *dir){
         }
     }
 }
-
 
 int32_t __rm(Directory *dir, const char * p, int32_t type){
     if(dir==NULL||p==NULL){
@@ -128,3 +129,34 @@ int64_t calculate_capacity(INode *inode){
 }
 
 
+
+int32_t mkdir(INUMBER upper, const char *name)
+{
+    INUMBER B_Directory = make_directory(upper);
+    Directory *d =getDirectory(INumber2INode(upper)->diskBlockId);
+    return add_directory_entry(d,name,B_Directory);
+}
+
+INUMBER chdir(INUMBER current,string path){
+    INode *node = INumber2INode(current);
+    if(node==NULL||node->type!=1){
+        return -1;
+    }
+    vector<string> pathlist = SplitString(path, "/");
+    Directory *no = pathlist[0].empty()?
+                getDirectory(INumber2INode(getFSInfo()->root_inumber)->diskBlockId)
+                :
+                getDirectory(node->diskBlockCount);
+
+    INUMBER tmp = -1;
+    for(int i=1;i<(long long)pathlist.size();i++){
+        tmp = find_in_directory(no,pathlist[i].c_str());
+        node = INumber2INode(tmp);
+        if(node&&node->type==1){
+            no = getDirectory(node->diskBlockId);
+        }else{
+            return -1;
+        }
+    }
+    return tmp;
+}

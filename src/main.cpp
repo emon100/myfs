@@ -1,14 +1,37 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include <iostream>
+#include <algorithm>
 #include "my.h"
 #include "syscall.h"
-
 using std::string;
 using std::vector;
+using std::cout;
+using std::endl;
+using std::cin;
 static char path[] = "D:\\myfs.hd";
 
 INUMBER currentDir;
+vector<string> currentDirString;
+
+void ls_final()
+{
+    ls(getDirectory(INumber2INode(currentDir)->diskBlockId));
+}
+
+void mkdir_final()
+{
+    Directory *dir=getDirectory(INumber2INode(currentDir)->diskBlockId);
+    cout<<"please input mkdir filename"<<endl;
+    string newfilename;
+    cin>>newfilename;
+    mkdir(dir,newfilename.c_str());
+    cout<<"mkdir success"<<endl;
+    ls_final();
+}
+
+
 vector<string> SplitString(const string& s, const string& c)
 {
     vector<string> v;
@@ -27,29 +50,26 @@ vector<string> SplitString(const string& s, const string& c)
     return v;
 }
 
-INUMBER chdir(INUMBER current,string path){
-    INode *node = INumber2INode(current);
-    if(node==NULL||node->type!=1){
-        return -1;
-    }
-    vector<string> pathlist = SplitString(path, "/");
-    Directory *no = pathlist[0].empty()?
-                getDirectory(INumber2INode(getFSInfo()->root_inumber)->diskBlockId)
-                :
-                getDirectory(node->diskBlockCount);
+vector<string> getdirString(INUMBER now){
+    vector<string> result;
 
-    INUMBER tmp = -1;
-    for(int i=1;i<(long long)pathlist.size();i++){
-        tmp = find_in_directory(no,pathlist[i].c_str());
-        node = INumber2INode(tmp);
-        if(node&&node->type==1){
-            no = getDirectory(node->diskBlockId);
-        }else{
-            return -1;
-        }
+    Directory *d =getDirectory(INumber2INode(now)->diskBlockId);
+    INUMBER upperINUMBER= find_in_directory(d,"..");//上层inumber
+
+    while(upperINUMBER!=now){
+        Directory *upperDirectory = getDirectory(INumber2INode(upperINUMBER)->diskBlockId);//上层目录
+        DirectoryEntry *entry =  find_entry_in_directory_by_INUMBER(upperDirectory,now);
+        result.push_back(string(entry->name));
+
+        now = upperINUMBER;//now变为原来的上层
+        upperINUMBER = find_in_directory(upperDirectory,"..");//上层变为上上层
     }
-    return tmp;
+
+    result.push_back("/");
+    reverse(result.begin(),result.end());
+    return result;
 }
+
 
 int loadFileSystem(char *path,int32_t FS_SIZE){
     char *rawfs =  transient(path, FS_SIZE);
@@ -129,6 +149,10 @@ int main(int argc, char** argv){
     printINodeInfo(INumber2INode(b));
     INUMBER c = chdir(0,"/b/c");
     printINodeInfo(INumber2INode(c));
+    vector<string> v = getdirString(c);
+    for(auto &&s:v){
+        printf("%s\n",s.c_str());
+    }
 
     printf("%d",rmdir(rootDir,"/a"));
     printINodeInfo(rootINode);

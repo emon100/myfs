@@ -370,6 +370,19 @@ INUMBER find_in_directory(Directory *dir, const char *name){
     return -1;
 }
 
+DirectoryEntry *find_entry_in_directory_by_INUMBER(Directory *dir, INUMBER inumber){
+    if(dir==NULL || inumber==-1){
+        return NULL;
+    }
+    for(int i=0;i<BLOCK_SIZE/(int)sizeof(DirectoryEntry);++i){
+        if(dir->Entry[i].inumber==inumber){
+            return &(dir->Entry[i]);
+        }
+    }
+    return NULL;
+}
+
+
 int give_file_an_empty_block(INode *inode){//给文件添加一个可以放东西的磁盘块
     if(inode==NULL||inode->type!=0){
         fprintf(stderr,"give_file_an_empty_block: inode is NULL or is directory.\n");
@@ -460,4 +473,3 @@ int give_file_an_empty_block(INode *inode){//给文件添加一个可以放东�
         }
     }
 }
-

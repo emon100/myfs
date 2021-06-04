@@ -97,6 +97,8 @@ inline INode *find_inode_in_directory(Directory *dir,const char * name){//从目
     return INumber2INode(find_in_directory(dir,name));
 }
 
+DirectoryEntry *find_entry_in_directory_by_INUMBER(Directory *dir,INUMBER i);//根据name寻找目录项
+
 
 int add_directory_entry(Directory *directory,const char * entryName, INUMBER inumber);//添加目录项，失败返回-1
 
