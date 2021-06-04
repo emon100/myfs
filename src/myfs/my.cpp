@@ -104,7 +104,6 @@ INUMBER alloc_empty_inode(
         }
     }
 
-    //
     *inode = {
         id,
         type,
@@ -121,16 +120,39 @@ INUMBER alloc_empty_inode(
     return allocated_inode_num;
 }
 
-void dealloc_blocks_on_inode(INode *inode){
-    /*
-     *TODO: delete recursively like in give_file_an_empty_block.
-     */
-    deallocate_block(inode->diskBlockId);
+void dealloc_all_blocks_on_inode(INode *inode){
+    if(inode->diskBlockCount<=1){
+        deallocate_block(inode->diskBlockId);
+        inode->diskBlockId = -1;
+        return;
+    }
+
+    int lastBlockId = inode->diskBlockId;
+
+    int n = inode->diskBlockCount;
+    for(int layer = (n - 1 + 1022)/1023;layer>0;--layer){
+        SuperBlock *sb = (SuperBlock *) getBlock(lastBlockId);
+        int size = sb->empty_blocks_count;
+        for(int i=0;i<size - 1;++i){//deallocate data block
+            deallocate_block(sb->empty_blocks_no_stack[i]);
+        }
+        if(size==1023){
+            int32_t nextLayerBlockId = sb->empty_blocks_no_stack[1022];
+            deallocate_block(lastBlockId); //deallocate this layer
+            lastBlockId = nextLayerBlockId; //put next layer or last data block to lastBlockId
+        }else{
+            deallocate_block(sb->empty_blocks_no_stack[size-1]); //deallocate last data block
+            break; //lastBlockId is this layer
+        }
+    }
+    deallocate_block(lastBlockId);
+    inode->diskBlockId = -1;
 }
 
 INUMBER dealloc_inode(INUMBER inumber){
     INode *inode = INumber2INode(inumber);
     if(inode != NULL){
+        dealloc_all_blocks_on_inode(inode);
         inode->qcount=-1;
         return inumber;
     }

@@ -15,6 +15,7 @@ static char path[] = "D:\\myfs.hd";
 INUMBER currentDir;
 vector<string> currentDirString;
 
+
 void ls_final()
 {
     ls(getDirectory(INumber2INode(currentDir)->diskBlockId));
@@ -26,7 +27,7 @@ void mkdir_final()
     cout<<"please input mkdir filename"<<endl;
     string newfilename;
     cin>>newfilename;
-    mkdir(dir,newfilename.c_str());
+    mkdir(currentDir,newfilename.c_str());
     cout<<"mkdir success"<<endl;
     ls_final();
 }
@@ -40,24 +41,6 @@ void chdir_final()
     chdir(currentDir,newpath);
     cout<<"chdir success"<<endl;
     ls_final();
-}
-
-vector<string> SplitString(const string& s, const string& c)
-{
-    vector<string> v;
-    string::size_type pos1, pos2;
-    pos2 = s.find(c);
-    pos1 = 0;
-    while(string::npos != pos2)
-    {
-        v.push_back(s.substr(pos1, pos2-pos1));
-
-        pos1 = pos2 + c.size();
-        pos2 = s.find(c, pos1);
-    }
-    if(pos1 != s.length())
-        v.push_back(s.substr(pos1));
-    return v;
 }
 
 vector<string> getdirString(INUMBER now){
@@ -90,16 +73,22 @@ int loadFileSystem(char *path,int32_t FS_SIZE){
     return 0;
 }
 
-int main(int argc, char** argv){
+void demo1(){
     const int32_t FS_SIZE = _128MB;
-    //setRawFs(formatAndActivate(FS_SIZE,BLOCK_SIZE));
-    //presistent(path, getRawFs(),FS_SIZE);
+    setRawFs(formatAndActivate(FS_SIZE,BLOCK_SIZE));
+    presistent(path, getRawFs(),FS_SIZE);
+}
+
+void demo2(){
+    const int32_t FS_SIZE = _128MB;
     loadFileSystem(path,FS_SIZE);
 
     FSInfo *fs = getFSInfo();
+    printf("output filesystem info\n");
     printFSInfo(fs);
     INode *rootINode = INumber2INode(fs->root_inumber);
     printINodeInfo(rootINode);
+    printf("\n\n\n");
 
     //放一个空文件a到根目录
     INUMBER inumber = alloc_empty_inode(
@@ -111,23 +100,93 @@ int main(int argc, char** argv){
         0
     );
 
-    char buf[50] = "Hello world";
-    write(inumber,0,buf,50);
-
     Directory *rootDir = getDirectory(rootINode->diskBlockId);
 
     const char * name = "a";
     int err = add_directory_entry(rootDir,name, inumber);
 
+    printf("try write and read\n");
+    char buf[50] = "Hello world";
+    write(inumber,0,buf,50);
 
+    err = add_directory_entry(rootDir,name, inumber);
     //找到这个文件的inumber
+
     INUMBER file = find_in_directory(rootDir,name);
     char result[50] = {};
     read(file,0,result,50);
 
     printf("\n%s\n",result);
 
+    printf("\n\n\n");
 
+    printf("try create two dirs in root\n");
+    const char * dirname = "b";
+    INUMBER B_Directory = make_directory(0);
+    add_directory_entry(rootDir,dirname,B_Directory);
+    INode *bnd = INumber2INode(B_Directory);
+
+    INUMBER C_Directory = make_directory(B_Directory);
+    add_directory_entry(getDirectory(bnd->diskBlockId),"c",C_Directory);
+
+    //显示根文件夹
+    printINodeInfo(rootINode);
+    printf("\n\n\n");
+
+
+    presistent(path, getRawFs(),FS_SIZE);//TODO
+    printf("try chdir\n");
+    INUMBER b = chdir(0,"/b");
+    printINodeInfo(INumber2INode(b));
+    INUMBER c = chdir(0,"/b/c");
+    printINodeInfo(INumber2INode(c));
+    vector<string> v = getdirString(c);
+    for(auto &&s:v){
+        printf("%s\n",s.c_str());
+    }
+    printf("\n\n\n");
+
+
+    printf("try rmdir\n");
+    printf("%d",rmdir(rootDir,"/a"));
+    printINodeInfo(rootINode);
+    printf("\n\n\n");
+    printf("try rm a file\n");
+    printf("%d",rm(rootDir,"/a"));
+    printINodeInfo(rootINode);
+    printf("\n\n\n");
+
+    printf("try rmdir /b/c\n");
+    printINodeInfo(bnd);
+    printf("%d",rmdir(rootDir,"b/c"));
+    printINodeInfo(bnd);
+    printf("\n\n\n");
+}
+
+void demo3(){
+    const int32_t FS_SIZE = _128MB;
+    loadFileSystem(path,FS_SIZE);
+
+    FSInfo *fs = getFSInfo();
+    printf("output filesystem info\n");
+    printFSInfo(fs);
+    INode *rootINode = INumber2INode(fs->root_inumber);
+    printINodeInfo(rootINode);
+    printf("\n\n\n");
+
+    Directory *root = getDirectory(rootINode->diskBlockId);
+
+    printf("try write and read\n");
+    INUMBER file = find_in_directory(root,"a"); //找到a文件的inumber
+    char result[50] = {};
+    read(file,0,result,50);
+
+    printf("\n%s\n",result);
+
+    printf("\n\n\n");
+
+
+    printf("try allocate empty blocks\n");
     //显示这个文件的INode
     INode *inodefile = INumber2INode(file);
     give_file_an_empty_block(inodefile);
@@ -142,36 +201,20 @@ int main(int argc, char** argv){
     give_file_an_empty_block(inodefile);
     give_file_an_empty_block(inodefile);
     printINodeInfo(inodefile);
-    printINodeInfo(rootINode);
+    printFSInfo(getFSInfo());
+    printf("\n\n");
 
-    const char * dirname = "b";
-    INUMBER B_Directory = make_directory(0);
-    add_directory_entry(rootDir,dirname,B_Directory);
-    INode *bnd = INumber2INode(B_Directory);
+    printf("try allocate file\n");
+    rm(root,"a");
+    printFSInfo(getFSInfo());
+    printf("\n\n");
 
-    INUMBER C_Directory = make_directory(B_Directory);
-    add_directory_entry(getDirectory(bnd->diskBlockId),"c",C_Directory);
+}
 
-    //显示根文件夹
-    printINodeInfo(rootINode);
-
-    INUMBER b = chdir(0,"/b");
-    printINodeInfo(INumber2INode(b));
-    INUMBER c = chdir(0,"/b/c");
-    printINodeInfo(INumber2INode(c));
-    vector<string> v = getdirString(c);
-    for(auto &&s:v){
-        printf("%s\n",s.c_str());
-    }
-
-    printf("%d",rmdir(rootDir,"/a"));
-    printINodeInfo(rootINode);
-    printf("%d",rm(rootDir,"/a"));
-    printINodeInfo(rootINode);
-
-    printINodeInfo(bnd);
-    printf("%d",rmdir(rootDir,"b/c"));
-    printINodeInfo(bnd);
+int main(int argc, char** argv){
+   // demo1();
+   // demo2();
+    demo3();
 }
 /*
 #include <vector>

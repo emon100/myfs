@@ -77,7 +77,6 @@ char *transient(const char *path, unsigned long FSSize);//从外存把文件系�
 int32_t alloc_empty_block();//分配空磁盘块，返回磁盘块号，失败返回-1
 int32_t deallocate_block(int32_t blockid);//释放磁盘块
 int give_file_an_empty_block(INode *inode);//给文件添加一个可以放东西的磁盘块
-void dealloc_blocks_on_inode(INode *inode);//删除inode关联的blocks
 
 INUMBER alloc_empty_inode( //分配并设置一个空inode，返回inumber，失败返回-1
     int32_t id,				//i结点所属的用户

@@ -12,7 +12,7 @@ int32_t rm(Directory *d,const char *path);//删除文件
 
 int32_t rmdir(Directory *d, const char *path);//删除目录
 
-int32_t mkdir(Directory *d,const char *name);//创建目录
+int32_t mkdir(INUMBER i,const char *name);//创建目录
 
 INUMBER open(const char *path);//打开文件
 
