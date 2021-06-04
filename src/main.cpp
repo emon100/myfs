@@ -31,6 +31,16 @@ void mkdir_final()
     ls_final();
 }
 
+void chdir_final()
+{
+    //Directory *dir=getDirectory(INumber2INode(currentDir)->diskBlockId);
+    cout<<"please input chdir path"<<endl;
+    string newpath;
+    cin>>newpath;
+    chdir(currentDir,newpath);
+    cout<<"chdir success"<<endl;
+    ls_final();
+}
 
 vector<string> SplitString(const string& s, const string& c)
 {

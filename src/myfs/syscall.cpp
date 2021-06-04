@@ -1,7 +1,5 @@
 #include <cstdio>
 #include <cstring>
-#include <string>
-#include <vector>
 #include "syscall.h"
 
 void ls(Directory *dir){
