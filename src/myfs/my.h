@@ -90,11 +90,14 @@ INUMBER alloc_empty_inode( //分配并设置一个空inode，返回inumber，失
 INUMBER dealloc_inode(INUMBER); //释放inode
 
 INUMBER make_directory(INUMBER upperINumber); //给目录文件分配1个磁盘块和inode，返回inumber
-INUMBER find_in_directory(Directory *dir, const char *name);//在目录中寻找name目录项，没找到返回-1
 INode *INumber2INode(INUMBER inumber); //把inumber转换成inode *
+DirectoryEntry *find_entry_in_directory(Directory *dir,const char * name);//根据name寻找目录项
+INUMBER find_in_directory(Directory *dir, const char *name);//在目录中寻找name目录项，没找到返回-1
 inline INode *find_inode_in_directory(Directory *dir,const char * name){//从目录中找name
     return INumber2INode(find_in_directory(dir,name));
 }
+
+
 int add_directory_entry(Directory *directory,const char * entryName, INUMBER inumber);//添加目录项，失败返回-1
 
 

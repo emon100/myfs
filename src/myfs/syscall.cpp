@@ -97,11 +97,14 @@ int64_t write(INUMBER fd, int64_t offset, void *buf, size_t count){
     }
     int64_t maxWriteCount = calculate_capacity(ino) - offset;
     while(maxWriteCount<=0){
-        give_file_an_empty_block(ino);
+        int err = give_file_an_empty_block(ino);
         maxWriteCount = calculate_capacity(ino) - offset;
+        if(err==-1){
+            break;
+        }
     }
     if(maxWriteCount > (long long)count){
-        //do 1 block
+        //TODO: now can only write to 1 block. Improve it.
         char *src =  getBlock(ino->diskBlockId);
         memcpy(src+offset,buf,count);
         ino->filelen = count;
@@ -123,3 +126,5 @@ int64_t calculate_capacity(INode *inode){
     int layer =  (n - 1 + 1022)/1023;
     return (n-layer) * BLOCK_SIZE;
 }
+
+

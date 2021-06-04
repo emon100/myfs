@@ -349,14 +349,23 @@ int add_directory_entry(Directory *directory, const char *entryName, int64_t inu
     return -3;
 }
 
-INUMBER find_in_directory(Directory *dir, const char *name){
+
+DirectoryEntry *find_entry_in_directory(Directory *dir, const char *name) {
     if(dir==NULL || name==NULL){
-        return -1;
+        return NULL;
     }
     for(int i=0;i<BLOCK_SIZE/(int)sizeof(DirectoryEntry);++i){
         if(dir->Entry[i].inumber!=-1&&strcmp(dir->Entry[i].name,name)==0){
-            return dir->Entry[i].inumber;
+            return &(dir->Entry[i]);
         }
+    }
+    return NULL;
+}
+
+INUMBER find_in_directory(Directory *dir, const char *name){
+    DirectoryEntry *entry = find_entry_in_directory(dir,name);
+    if(entry!=NULL){
+        return entry->inumber;
     }
     return -1;
 }

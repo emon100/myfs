@@ -16,13 +16,7 @@ TEST(FileSystem, createdir){
     setRawFs(formatAndActivate(FS_SIZE,BLOCK_SIZE));
 
     FSInfo *fs = getFSInfo();
-    FSInfo expectfs = {
-        _10MB,
-        BLOCK_SIZE,
-        1,
-        509,
-        0
-    };
+
     INode *rootINode = INumber2INode(fs->root_inumber);
     EXPECT_EQ(rootINode->id , 0);
     EXPECT_EQ(rootINode->type , 1);
