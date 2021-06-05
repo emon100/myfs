@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 using std::string;
-using std::vector;
 
 void ls(Directory *d);
 
@@ -21,5 +20,6 @@ int64_t read(INUMBER fd, int64_t offset, void *buf, size_t count);//读取
 
 int64_t calculate_capacity(INode *ino);//计算文件可容纳的内容大小
 
+INUMBER inumber_of_path(INUMBER i,const char *path);
 INUMBER chdir(INUMBER current,string path);
 #endif // SYSCALL_H

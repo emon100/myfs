@@ -3,14 +3,18 @@
 #include <vector>
 #include <iostream>
 #include <algorithm>
+#include <cstring>
 #include "my.h"
 #include "syscall.h"
+#define USE_FUSE_VERSION 31
+#include "fuse3/fuse.h"
+
 using std::string;
 using std::vector;
 using std::cout;
 using std::endl;
 using std::cin;
-static char path[] = "D:\\myfs.hd";
+static char pathOfFS[] = "/home/emon100/myfs.hd";
 
 INUMBER currentDir;
 vector<string> currentDirString;
@@ -41,6 +45,46 @@ void chdir_final()
     chdir(currentDir,newpath);
     cout<<"chdir success"<<endl;
     ls_final();
+}
+
+
+static int fs_readdir(const char *path,void *buf, fuse_fill_dir_t filler,
+        off_t off,struct fuse_file_info *fi,
+        enum fuse_readdir_flags flags){
+
+    int r = chdir(0,path);
+    if(r<0) return r;
+
+    DirectoryEntry *entries = getDirectory(INumber2INode(r)->diskBlockId)->Entry;
+
+    for(int i=0;i<BLOCK_SIZE/(int)sizeof(DirectoryEntry);++i){
+        if(entries[i].inumber!=-1){
+            filler(buf,entries[i].name,NULL,0,FUSE_FILL_DIR_PLUS);
+        }
+    }
+    return 0;
+}
+
+static int fs_getattr(const char *path, struct stat *buf, struct fuse_file_info *fi){
+    memset(buf,0,sizeof(struct stat));
+    buf->st_mode = S_IFDIR|0777;
+
+    int r = inumber_of_path(getFSInfo()->root_inumber,path);
+    if(r<0) return r;
+
+    INode *i = INumber2INode(r);
+    if(i){
+        buf->st_size = i->filelen;
+        buf->st_mode= (i->type?S_IFDIR:S_IFREG)|0777;
+
+        buf->st_nlink=2;
+        buf->st_ctime = i->createTime;
+        buf->st_blksize = BLOCK_SIZE;
+        buf->st_blocks = i->diskBlockCount;
+        return 0;
+    }else{
+        return -ENOENT;
+    }
 }
 
 vector<string> getdirString(INUMBER now){
@@ -76,12 +120,12 @@ int loadFileSystem(char *path,int32_t FS_SIZE){
 void demo1(){
     const int32_t FS_SIZE = _128MB;
     setRawFs(formatAndActivate(FS_SIZE,BLOCK_SIZE));
-    presistent(path, getRawFs(),FS_SIZE);
+    presistent(pathOfFS, getRawFs(),FS_SIZE);
 }
 
 void demo2(){
     const int32_t FS_SIZE = _128MB;
-    loadFileSystem(path,FS_SIZE);
+    loadFileSystem(pathOfFS,FS_SIZE);
 
     FSInfo *fs = getFSInfo();
     printf("output filesystem info\n");
@@ -134,7 +178,7 @@ void demo2(){
     printf("\n\n\n");
 
 
-    presistent(path, getRawFs(),FS_SIZE);//TODO
+    presistent(pathOfFS, getRawFs(),FS_SIZE);//TODO
     printf("try chdir\n");
     INUMBER b = chdir(0,"/b");
     printINodeInfo(INumber2INode(b));
@@ -165,7 +209,7 @@ void demo2(){
 
 void demo3(){
     const int32_t FS_SIZE = _128MB;
-    loadFileSystem(path,FS_SIZE);
+    loadFileSystem(pathOfFS,FS_SIZE);
 
     FSInfo *fs = getFSInfo();
     printf("output filesystem info\n");
@@ -211,105 +255,52 @@ void demo3(){
 
 }
 
+int fs_read(const char *path, char *buf, size_t size, off_t off, struct fuse_file_info *fi){
+    inumber_of_path(0,path);
+    int r = inumber_of_path(getFSInfo()->root_inumber,path);
+    if(r<0) return r;
+
+    INode *i = INumber2INode(r);
+    if(i&&i->type!=1){
+        return read(r,off,buf,size);
+    }else{
+        return -ENOENT;
+    }
+}
+
+int fs_write(const char *path,const char *buf, size_t size, off_t off, struct fuse_file_info *fi){
+    inumber_of_path(0,path);
+    int r = inumber_of_path(getFSInfo()->root_inumber,path);
+    if(r<0) return r;
+
+    INode *i = INumber2INode(r);
+    if(i&&i->type!=1){
+        r = write(r,off,(void *)buf,size);
+        if(r>0) presistent(pathOfFS,getRawFs(),getFSInfo()->fs_size);
+        return r;
+    }else{
+        return -ENOENT;
+    }
+}
+
+
 int main(int argc, char** argv){
-   // demo1();
-   // demo2();
-    demo3();
+    // demo1();
+    // demo2();
+    //demo3();
+    loadFileSystem(pathOfFS,_128MB);
+    int ret;
+    struct fuse_args args = FUSE_ARGS_INIT(argc,argv);
+
+    struct fuse_operations fs_ops;
+    memset(&fs_ops,0,sizeof(fuse_operations));
+    fs_ops.readdir = &fs_readdir;
+    fs_ops.getattr = &fs_getattr;
+    fs_ops.read = &fs_read;
+    fs_ops.write = &fs_write;
+
+
+    ret = fuse_main(args.argc,args.argv,&fs_ops,NULL);
+    fuse_opt_free_args(&args);
+    return ret;
 }
-/*
-#include <vector>
-#include <string>
-#include <iostream>
-
-using namespace std;
-
-//记录当前登陆的账户userid
-int64_t currentUserId;
-
-//一个user
-typedef struct user{
-    int64_t userId;
-    string username;
-    string password;
-    int64_t groupId;
-    string groupname;
-}user;
-
-//全部user
-vector<user> userList;
-
-//显示全部user信息
-void displayUsersInfo()
-{
-    for (auto iter = userList.begin(); iter != userList.end(); iter++)
-    {
-        cout<<"userId:"<<iter->userId<<endl;;
-        cout<<"username:"<<iter->username<<endl;;
-        cout<<"groupId:"<<iter->groupId<<endl;
-        cout<<"groupname:"<<iter->groupname<<endl;
-    }
-}
-
-
-//登录
-void login()
-{
-
-    cout<<"LOGIN"<<endl;
-    cout<<"Please input username:";
-    string currentUserName;
-    cin>>currentUserName;
-    for (auto iter = userList.begin(); iter != userList.end(); iter++)
-    {
-        if(currentUserName == iter->username)
-        {
-            cout<<"Please input password:";
-            string currentUserPassword;
-            cin>>currentUserPassword;
-            if(currentUserPassword == iter->password)
-            {
-                currentUserId=iter->userId;
-                cout<<"Login success！"<<endl;
-                return;
-            }
-            else
-            {
-                cout<<"Incorrect password！Please try again."<<endl;
-                login();
-                return;
-            }
-        }
-    }
-    cout<<"Invalid username.Please try again"<<endl;
-    login();
-}
-
-void logout()
-{
-    if(currentUserId == -1)
-    {
-        cout<<"No login user."<<endl;
-    }
-    else
-    {
-        currentUserId = -1;
-        cout<<"Logout success."<<endl;
-    }
-}
-
-int main()
-{
-    ////////////////////////////////
-    user user1;
-    user1.userId=1;
-    user1.username="emon";
-    user1.password="emon";
-    user1.groupId=1;
-    user1.groupname="root";
-    ////////////////////////////////
-    userList.push_back(user1);
-    login();
-    logout();
-    displayUsersInfo();
-}
-*/

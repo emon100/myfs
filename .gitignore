@@ -2,3 +2,5 @@
 课设材料
 CMakeFiles
 *.swp
+build
+.cache

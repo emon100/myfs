@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstring>
 #include "syscall.h"
+using std::vector;
 
 void ls(Directory *dir){
     DirectoryEntry * entries = dir->Entry;
@@ -89,7 +90,7 @@ int64_t read(INUMBER fd, int64_t offset, void *buf, size_t count){
     }
 }
 
-int64_t write(INUMBER fd, int64_t offset, void *buf, size_t count){
+int64_t write(INUMBER fd, int64_t offset, void *buf, size_t count){//only overwrite now
     INode *ino = INumber2INode(fd);
     if(buf==NULL||ino==NULL){
         return -1;
@@ -106,12 +107,12 @@ int64_t write(INUMBER fd, int64_t offset, void *buf, size_t count){
         //TODO: now can only write to 1 block. Improve it.
         char *src =  getBlock(ino->diskBlockId);
         memcpy(src+offset,buf,count);
-        ino->filelen = count;
+        ino->filelen = offset + count;
         return count;
     }else{
         char *src =  getBlock(ino->diskBlockId);
         memcpy(src+offset,buf,maxWriteCount);
-        ino->filelen = maxWriteCount;
+        ino->filelen = offset + maxWriteCount;
         return maxWriteCount;
     }
 }
@@ -153,26 +154,54 @@ vector<string> SplitString(const string& s, const string& c)
     return v;
 }
 
-INUMBER chdir(INUMBER current,string path){
-    INode *node = INumber2INode(current);
-    if(node==NULL||node->type!=1){
+INUMBER inumber_of_path(INUMBER current, const char * path){
+    if(path==NULL){
         return -1;
     }
-    vector<string> pathlist = SplitString(path, "/");
-    Directory *no = pathlist[0].empty()?
-                getDirectory(INumber2INode(getFSInfo()->root_inumber)->diskBlockId)
-                :
-                getDirectory(node->diskBlockCount);
+    INode *node;
+    if(path[0]=='/'){
+        current = getFSInfo()->root_inumber;
+        path+=1;
+    }
+    node = INumber2INode(current);
 
-    INUMBER tmp = -1;
-    for(int i=1;i<(long long)pathlist.size();i++){
-        tmp = find_in_directory(no,pathlist[i].c_str());
-        node = INumber2INode(tmp);
-        if(node&&node->type==1){
-            no = getDirectory(node->diskBlockId);
+    if(node==NULL||node->type==0){
+        return -1;
+    }
+
+    vector<string> pathlist = SplitString(path, "/");
+    while(!pathlist.empty()){
+        string &s = *(pathlist.rbegin());
+        if(s.empty()||s.find_last_not_of(" \t\n")!=s.length()-1){
+            pathlist.pop_back();
         }else{
-            return -1;
+            break;
         }
     }
-    return tmp;
+
+    Directory *no = getDirectory(node->diskBlockId);
+
+    int sz = pathlist.size();
+    for(int i=0;i<sz;i++){
+        current = find_in_directory(no,pathlist[i].c_str());
+        node = INumber2INode(current);
+        if(node == NULL){
+            return -1;
+        }else if(node->type==1){
+            no = getDirectory(node->diskBlockId);
+        }else{
+            no = NULL;
+        }
+    }
+    return current;
+}
+
+INUMBER chdir(INUMBER current,string path){
+    INUMBER tmp =  inumber_of_path(current,path.c_str());
+    INode *tnode = INumber2INode(tmp);
+    if(tnode&&tnode->type==1){
+        return tmp;
+    }else{
+        return -1;
+    }
 }

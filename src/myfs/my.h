@@ -1,6 +1,8 @@
 #ifndef MY_H
 #define MY_H
 #include <cstdint>
+#define FUSE_USE_VERSION 30
+#include "fuse3/fuse.h"
 
 typedef int64_t INUMBER;
 
