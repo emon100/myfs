@@ -1,54 +1,29 @@
-#include <cstdio>
 #include <cstring>
 #include "syscall.h"
-using std::vector;
 
-void ls(Directory *dir){
-    DirectoryEntry * entries = dir->Entry;
-    for(int i=0;i<BLOCK_SIZE/(int)sizeof(DirectoryEntry);++i){
-        if(entries[i].inumber!=-1){
-            printf("%s\t",entries[i].name);
-        }
-    }
-}
-
-int32_t __rm(Directory *dir, const char * p, int32_t type){
-    if(dir==NULL||p==NULL){
+int32_t __rm(INUMBER dir, const char * p, int32_t type){
+    INode *dirInode = INumber2INode(dir);
+    if(dirInode==NULL||p==NULL||dirInode->type==0){
         return -1;
     }
 
     char buf[5000]={};
     int i=0;
+    
+    INUMBER target = inumber_of_path(dir,p);
+    INode *targetinode = INumber2INode(target);
 
-    INUMBER target = -1;
-    INode *targetinode = NULL;
-    while(*p!='\0'){
-        if(*p!='/'){
-            buf[i] = *p;
-            ++i;
-        }else{
-            if(*(p+1)=='\0'){
-                break;
-            }
-            i=0;
-            targetinode = find_inode_in_directory(dir,buf);
-            if(targetinode==NULL||targetinode->type==0){
-                return -1;
-            }else{
-                dir = getDirectory(targetinode->diskBlockId);
-            }
-        }
-        ++p;
-    }
-    target = find_in_directory(dir,buf);
-    targetinode = INumber2INode(target);
     if(targetinode==NULL||targetinode->type!=type){
         return -1;
     }else{
-        dealloc_inode(target);
+        --(targetinode->qcount);
+        if(targetinode->qcount<=0){
+            dealloc_inode(target);
+        }
+        Directory *directory = getDirectory(dirInode->diskBlockId);
         for(int i=0;i<(long long)(sizeof(Directory)/sizeof(DirectoryEntry));++i){
-            if(dir->Entry[i].inumber==target){
-                dir->Entry[i].inumber=-1;
+            if(directory->Entry[i].inumber==target){
+                directory->Entry[i].inumber=-1;
                 break;
             }
         }
@@ -56,16 +31,16 @@ int32_t __rm(Directory *dir, const char * p, int32_t type){
     }
 }
 
-int32_t rmdir(Directory *dir,const char *p){
+int32_t rmdir(INUMBER dir,const char *p){
     if(p[0]=='/'){
-        dir = getDirectory(INumber2INode(getFSInfo()->root_inumber)->diskBlockId);
+        dir = getFSInfo()->root_inumber;
         ++p;
     }
     return __rm(dir,p,1);
 }
-int32_t rm(Directory *dir,const char *p){
+int32_t rm(INUMBER dir,const char *p){
     if(p[0]=='/'){
-        dir = getDirectory(INumber2INode(getFSInfo()->root_inumber)->diskBlockId);
+        dir = getFSInfo()->root_inumber;
         ++p;
     }
     return __rm(dir,p,0);
@@ -95,6 +70,10 @@ int64_t write(INUMBER fd, int64_t offset, void *buf, size_t count){//only overwr
     if(buf==NULL||ino==NULL){
         return -1;
     }
+    if(offset+count>_4KB){
+        //TODO: now can only write to 1 block. Improve it.
+        return -1;
+    }
     int64_t maxWriteCount = calculate_capacity(ino) - offset;
     while(maxWriteCount<=0){
         int err = give_file_an_empty_block(ino);
@@ -104,7 +83,6 @@ int64_t write(INUMBER fd, int64_t offset, void *buf, size_t count){//only overwr
         }
     }
     if(maxWriteCount > (long long)count){
-        //TODO: now can only write to 1 block. Improve it.
         char *src =  getBlock(ino->diskBlockId);
         memcpy(src+offset,buf,count);
         ino->filelen = offset + count;
@@ -131,73 +109,73 @@ int64_t calculate_capacity(INode *inode){
 
 int32_t mkdir(INUMBER upper, const char *name)
 {
+    if(upper<0||INumber2INode(upper)->type!=1){
+        return -1;
+    }
     INUMBER B_Directory = make_directory(upper);
     Directory *d =getDirectory(INumber2INode(upper)->diskBlockId);
     return add_directory_entry(d,name,B_Directory);
-}
-
-vector<string> SplitString(const string& s, const string& c)
-{
-    vector<string> v;
-    string::size_type pos1, pos2;
-    pos2 = s.find(c);
-    pos1 = 0;
-    while(string::npos != pos2)
-    {
-        v.push_back(s.substr(pos1, pos2-pos1));
-
-        pos1 = pos2 + c.size();
-        pos2 = s.find(c, pos1);
-    }
-    if(pos1 != s.length())
-        v.push_back(s.substr(pos1));
-    return v;
 }
 
 INUMBER inumber_of_path(INUMBER current, const char * path){
     if(path==NULL){
         return -1;
     }
-    INode *node;
+    INode *currentINode;
     if(path[0]=='/'){
         current = getFSInfo()->root_inumber;
         path+=1;
     }
-    node = INumber2INode(current);
-
-    if(node==NULL||node->type==0){
+    currentINode = INumber2INode(current);
+    if(currentINode==NULL||currentINode->type==0){
         return -1;
     }
 
-    vector<string> pathlist = SplitString(path, "/");
-    while(!pathlist.empty()){
-        string &s = *(pathlist.rbegin());
-        if(s.empty()||s.find_last_not_of(" \t\n")!=s.length()-1){
-            pathlist.pop_back();
+    char buf[501]={};
+    int i=0;
+    Directory *dir = getDirectory(currentINode->diskBlockId);
+    while(*path!='\0'&&dir!=NULL){
+        if(*path!='/'){
+            if(i==500){
+                return -1;
+            }
+            buf[i] = *path;
+            ++i;
         }else{
-            break;
+            if(*(path+1)=='\0'){
+                current = find_in_directory(dir,buf);
+                currentINode = INumber2INode(current);
+                if(currentINode&&currentINode->type==1){
+                    return current;//finding directory and get directory;
+                }else{
+                    return -1;
+                }
+            }
+            buf[i]='\0';
+            i=0;
+            current = find_in_directory(dir,buf);
+            currentINode = INumber2INode(current);
+            if(currentINode==NULL){
+                return -1;
+            }else if(currentINode->type==0){
+                dir = NULL;
+            }else{
+                dir = getDirectory(currentINode->diskBlockId);
+            }
         }
+        ++path;
     }
-
-    Directory *no = getDirectory(node->diskBlockId);
-
-    int sz = pathlist.size();
-    for(int i=0;i<sz;i++){
-        current = find_in_directory(no,pathlist[i].c_str());
-        node = INumber2INode(current);
-        if(node == NULL){
-            return -1;
-        }else if(node->type==1){
-            no = getDirectory(node->diskBlockId);
-        }else{
-            no = NULL;
-        }
+    if(i!=0){
+        current = find_in_directory(dir,buf);
     }
     return current;
 }
 
-INUMBER chdir(INUMBER current,string path){
-    INUMBER tmp =  inumber_of_path(current,path.c_str());
+INUMBER chdir(INUMBER current,const char *path){
+    if(path==NULL){
+        return -1;
+    }
+    INUMBER tmp =  inumber_of_path(current,path);
     INode *tnode = INumber2INode(tmp);
     if(tnode&&tnode->type==1){
         return tmp;

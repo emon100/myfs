@@ -21,11 +21,11 @@ void printFSInfo(FSInfo *fs){
         return;
     }
     printf("----FSINFO-----\n");
-    printf("fs_size :%lld\n",fs->fs_size);
-    printf("block_size :%lld\n",fs->block_size);
-    printf("inode_count :%lld\n",fs->inode_count);
-    printf("empty_block_num :%lld\n",fs->empty_block_count);
-    printf("root_inumber :%lld\n",fs->root_inumber);
+    printf("fs_size :%ld\n",fs->fs_size);
+    printf("block_size :%ld\n",fs->block_size);
+    printf("inode_count :%ld\n",fs->inode_count);
+    printf("empty_block_num :%ld\n",fs->empty_block_count);
+    printf("root_inumber :%ld\n",fs->root_inumber);
     printf("----FSINFO--END-----\n");
 }
 
@@ -42,7 +42,7 @@ void printINodeInfo(INode *i){
     printf("diskBlockCount :%d\n",i->diskBlockCount);
     printf("diskBlockId :%d\n",i->diskBlockId);
     printf("qcount :%d\n",i->qcount);
-    printf("time :%lld\n",i->createTime);
+    printf("time :%ld\n",i->createTime);
     if(i->type==1){
         printDirectory(getDirectory(i->diskBlockId));
     }
@@ -61,7 +61,7 @@ void printDirectory(Directory *dir){
     int count=0;
     for(int i=0;i<BLOCK_SIZE/(int)sizeof(DirectoryEntry);++i){
         if(entries[i].inumber!=-1){
-            printf("%s\t\t%lld\n",entries[i].name,entries[i].inumber);
+            printf("%s\t\t%ld\n",entries[i].name,entries[i].inumber);
             ++count;
         }
     }
@@ -355,7 +355,7 @@ int add_directory_entry(Directory *directory, const char *entryName, int64_t inu
         }else{
             if(strcmp(entryName,entries[i].name)==0){
                 fprintf(stderr,"add_directory_entry: file already exists.\n");
-                return -2;
+                return -1;
             }
         }
     }
@@ -393,7 +393,7 @@ INUMBER find_in_directory(Directory *dir, const char *name){
 }
 
 DirectoryEntry *find_entry_in_directory_by_INUMBER(Directory *dir, INUMBER inumber){
-    if(dir==NULL || inumber==-1){
+    if(dir==NULL || inumber< -1){
         return NULL;
     }
     for(int i=0;i<BLOCK_SIZE/(int)sizeof(DirectoryEntry);++i){

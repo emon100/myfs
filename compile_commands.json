@@ -1,1 +1,22 @@
-compile_commands.json
+[
+{
+  "directory": "/home/emon100/os_design/build/src",
+  "command": "/usr/sbin/c++  -I/home/emon100/os_design/src/myfs -I/home/emon100/os_design/src/myfs_fuse -lfuse3 -lpthread -std=gnu++17 -o CMakeFiles/FileSystem_main.dir/main.cpp.o -c /home/emon100/os_design/src/main.cpp",
+  "file": "/home/emon100/os_design/src/main.cpp"
+},
+{
+  "directory": "/home/emon100/os_design/build/src/myfs",
+  "command": "/usr/sbin/c++   -std=gnu++17 -o CMakeFiles/myfs.dir/my.cpp.o -c /home/emon100/os_design/src/myfs/my.cpp",
+  "file": "/home/emon100/os_design/src/myfs/my.cpp"
+},
+{
+  "directory": "/home/emon100/os_design/build/src/myfs",
+  "command": "/usr/sbin/c++   -std=gnu++17 -o CMakeFiles/myfs.dir/syscall.cpp.o -c /home/emon100/os_design/src/myfs/syscall.cpp",
+  "file": "/home/emon100/os_design/src/myfs/syscall.cpp"
+},
+{
+  "directory": "/home/emon100/os_design/build/src/myfs_fuse",
+  "command": "/usr/sbin/c++  -I/home/emon100/os_design/src/myfs -lfuse3 -lpthread -std=gnu++17 -o CMakeFiles/myfs_fuse.dir/myfs_fuse.cpp.o -c /home/emon100/os_design/src/myfs_fuse/myfs_fuse.cpp",
+  "file": "/home/emon100/os_design/src/myfs_fuse/myfs_fuse.cpp"
+}
+]
