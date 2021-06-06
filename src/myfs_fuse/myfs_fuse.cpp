@@ -112,12 +112,8 @@ int fs_rmdir(const char *path){
 }
 
 int fs_mkdir(const char *path, mode_t mode){
-    int pos = -1;
-    for(const char *p = path;*p;++p){
-        if(*p=='/'){
-            pos = p-path;
-        }
-    }
+    const char *res = strrchr(path,'/');
+    int pos = res==NULL?-1:res-path;
     if(pos==-1||pos==0){
         INUMBER upper = inumber_of_path(getFSInfo()->root_inumber,path);
         return mkdir(upper,path);
@@ -131,12 +127,8 @@ int fs_mkdir(const char *path, mode_t mode){
 }
 
 int fs_create(const char *path, mode_t mode, struct fuse_file_info *fi){
-    int pos = -1;
-    for(const char *p = path;*p;++p){
-        if(*p=='/'){
-            pos = p-path;
-        }
-    }
+    const char *res = strrchr(path,'/');
+    int pos = res==NULL?-1:res-path;
 
     if(pos==-1||pos==0){
         INUMBER upper = inumber_of_path(getFSInfo()->root_inumber,path);
@@ -192,4 +184,9 @@ int fs_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 }
 int fs_unlink(const char *path){
     return rm(getFSInfo()->root_inumber,path+1);
+}
+
+int fs_flush(const char *path, struct fuse_file_info *fi){
+    presistent(pathOfFS, getRawFs(), getFSInfo()->fs_size);
+    return 0;
 }

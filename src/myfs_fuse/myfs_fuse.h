@@ -16,4 +16,6 @@ int fs_rmdir(const char *path);
 int fs_mkdir(const char *path,mode_t mode);
 int fs_create(const char *path, mode_t mode, struct fuse_file_info *fi);
 int fs_unlink(const char *path);
+
+int fs_flush(const char *path, struct fuse_file_info *fi);
 #endif

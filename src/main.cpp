@@ -56,6 +56,7 @@ int main(int argc, char** argv){
     fs_ops.mkdir = &fs_mkdir;
     fs_ops.create = &fs_create;
     fs_ops.unlink = &fs_unlink;
+    fs_ops.flush = &fs_flush;
 
     ret = fuse_main(args.argc,args.argv,&fs_ops,NULL);
     fuse_opt_free_args(&args);
